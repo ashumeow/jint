@@ -21,6 +21,7 @@ namespace Jint.Tests.Parser
         [InlineData("mootools.js", "1.4.5")]
         [InlineData("angular.js", "1.2.5")]
         [InlineData("JSXTransformer.js", "0.10.0")]
+        [InlineData("handlebars.js", "2.0.0")]
         public void ShouldParseScriptFile(string file, string version)
         {
             const string prefix = "Jint.Tests.Parser.Scripts.";
@@ -194,6 +195,21 @@ namespace Jint.Tests.Parser
             var body = program.Body;
 
             Assert.NotNull(body);
+        }
+
+        [Fact]
+        public void ShouldProvideLocationForMultiLinesStringLiterals()
+        {
+            var source = @"'\
+\
+'
+";
+            var program = _parser.Parse(source);
+            var expr = program.Body.First().As<ExpressionStatement>().Expression;
+            Assert.Equal(1, expr.Location.Start.Line);
+            Assert.Equal(0, expr.Location.Start.Column);
+            Assert.Equal(3, expr.Location.End.Line);
+            Assert.Equal(1, expr.Location.End.Column);
         }
 
     }

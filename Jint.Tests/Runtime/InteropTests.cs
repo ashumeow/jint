@@ -55,6 +55,47 @@ namespace Jint.Tests.Runtime
         }
 
         [Fact]
+        public void DelegateWithNullableParameterCanBePassedANull()
+        {
+            _engine.SetValue("isnull", new Func<double?, bool>(x => x == null));
+
+            RunTest(@"
+                assert(isnull(null) === true);
+            ");
+        }
+
+        [Fact]
+        public void DelegateWithObjectParameterCanBePassedANull()
+        {
+            _engine.SetValue("isnull", new Func<object, bool>(x => x == null));
+
+            RunTest(@"
+                assert(isnull(null) === true);
+            ");
+        }
+
+        private delegate string callParams(params object[] values);
+        private delegate string callArgumentAndParams(string firstParam, params object[] values);
+
+        [Fact]
+        public void DelegatesWithParamsParameterCanBeInvoked()
+        {
+            var a = new A();
+            _engine.SetValue("callParams", new callParams(a.Call13));
+            _engine.SetValue("callArgumentAndParams", new callArgumentAndParams(a.Call14));
+
+            RunTest(@"
+                assert(callParams('1','2','3') === '1,2,3');
+                assert(callParams('1') === '1');
+                assert(callParams() === '');
+
+                assert(callArgumentAndParams('a','1','2','3') === 'a:1,2,3');
+                assert(callArgumentAndParams('a','1') === 'a:1');
+                assert(callArgumentAndParams('a') === 'a:');
+            ");
+        }
+
+        [Fact]
         public void CanGetObjectProperties()
         {
             var p = new Person
@@ -100,6 +141,107 @@ namespace Jint.Tests.Runtime
             ");
 
             Assert.Equal("Donald Duck", p.Name);
+        }
+
+        [Fact]
+        public void CanGetIndexUsingStringKey()
+        {
+            var dictionary = new Dictionary<string, Person>();
+            dictionary.Add("person1", new Person { Name = "Mickey Mouse" });
+            dictionary.Add("person2", new Person { Name = "Goofy" });
+
+            _engine.SetValue("dictionary", dictionary);
+
+            RunTest(@"
+                assert(dictionary['person1'].Name === 'Mickey Mouse');
+                assert(dictionary['person2'].Name === 'Goofy');
+            ");
+        }
+
+        [Fact]
+        public void CanSetIndexUsingStringKey()
+        {
+            var dictionary = new Dictionary<string, Person>();
+            dictionary.Add("person1", new Person { Name = "Mickey Mouse" });
+            dictionary.Add("person2", new Person { Name = "Goofy" });
+
+            _engine.SetValue("dictionary", dictionary);
+
+            RunTest(@"
+                dictionary['person2'].Name = 'Donald Duck';
+                assert(dictionary['person2'].Name === 'Donald Duck');
+            ");
+
+            Assert.Equal("Donald Duck", dictionary["person2"].Name);
+        }
+
+        [Fact]
+        public void CanGetIndexUsingIntegerKey()
+        {
+            var dictionary = new Dictionary<int, string>();
+            dictionary.Add(1, "Mickey Mouse");
+            dictionary.Add(2, "Goofy");
+
+            _engine.SetValue("dictionary", dictionary);
+
+            RunTest(@"
+                assert(dictionary[1] === 'Mickey Mouse');
+                assert(dictionary[2] === 'Goofy');
+            ");
+        }
+
+        [Fact]
+        public void CanSetIndexUsingIntegerKey()
+        {
+            var dictionary = new Dictionary<int, string>();
+            dictionary.Add(1, "Mickey Mouse");
+            dictionary.Add(2, "Goofy");
+
+            _engine.SetValue("dictionary", dictionary);
+
+            RunTest(@"
+                dictionary[2] = 'Donald Duck';
+                assert(dictionary[2] === 'Donald Duck');
+            ");
+
+            Assert.Equal("Mickey Mouse", dictionary[1]);
+            Assert.Equal("Donald Duck", dictionary[2]);
+        }
+
+        [Fact]
+        public void CanUseIndexOnCollection()
+        {
+            var collection = new System.Collections.ObjectModel.Collection<string>();
+            collection.Add("Mickey Mouse");
+            collection.Add("Goofy");
+
+            _engine.SetValue("dictionary", collection);
+
+            RunTest(@"
+                dictionary[1] = 'Donald Duck';
+                assert(dictionary[1] === 'Donald Duck');
+            ");
+
+            Assert.Equal("Mickey Mouse", collection[0]);
+            Assert.Equal("Donald Duck", collection[1]);
+        }
+
+        [Fact]
+        public void CanUseIndexOnList()
+        {
+            var arrayList = new System.Collections.ArrayList(2);
+            arrayList.Add("Mickey Mouse");
+            arrayList.Add("Goofy");
+
+            _engine.SetValue("dictionary", arrayList);
+
+            RunTest(@"
+                dictionary[1] = 'Donald Duck';
+                assert(dictionary[1] === 'Donald Duck');
+            ");
+
+            Assert.Equal("Mickey Mouse", arrayList[0]);
+            Assert.Equal("Donald Duck", arrayList[1]);
         }
 
         [Fact]
@@ -460,6 +602,98 @@ namespace Jint.Tests.Runtime
         }
 
         [Fact]
+        public void ShouldExecuteFunctionCallBackAsPredicate()
+        {
+            _engine.SetValue("a", new A());
+            
+            // Func<>
+            RunTest(@"
+                assert(a.Call8(function(){ return 'foo'; }) === 'foo');
+            ");
+        }
+
+        [Fact]
+        public void ShouldExecuteFunctionWithParameterCallBackAsPredicate()
+        {
+            _engine.SetValue("a", new A());
+
+            // Func<,>
+            RunTest(@"
+                assert(a.Call7('foo', function(a){ return a === 'foo'; }) === true);
+            ");
+        }
+
+        [Fact]
+        public void ShouldExecuteActionCallBackAsPredicate()
+        {
+            _engine.SetValue("a", new A());
+
+            // Action
+            RunTest(@"
+                var value;
+                a.Call9(function(){ value = 'foo'; });
+                assert(value === 'foo');
+            ");
+        }
+
+        [Fact]
+        public void ShouldExecuteActionWithParameterCallBackAsPredicate()
+        {
+            _engine.SetValue("a", new A());
+
+            // Action<>
+            RunTest(@"
+                var value;
+                a.Call10('foo', function(b){ value = b; });
+                assert(value === 'foo');
+            ");
+        }
+
+        [Fact]
+        public void ShouldExecuteActionWithMultipleParametersCallBackAsPredicate()
+        {
+            _engine.SetValue("a", new A());
+
+            // Action<,>
+            RunTest(@"
+                var value;
+                a.Call11('foo', 'bar', function(a,b){ value = a + b; });
+                assert(value === 'foobar');
+            ");
+        }
+
+        [Fact]
+        public void ShouldExecuteFunc()
+        {
+            _engine.SetValue("a", new A());
+
+            // Func<int, int>
+            RunTest(@"
+                var result = a.Call12(42, function(a){ return a + a; });
+                assert(result === 84);
+            ");
+        }
+
+        [Fact]
+        public void ShouldExecuteActionCallbackOnEventChanged()
+        {
+            var collection = new System.Collections.ObjectModel.ObservableCollection<string>();
+            Assert.True(collection.Count == 0);
+
+            _engine.SetValue("collection", collection);
+
+            RunTest(@"
+                var eventAction;
+                collection.add_CollectionChanged(function(sender, eventArgs) { eventAction = eventArgs.Action; } );
+                collection.Add('test');
+            ");
+
+            var eventAction = _engine.GetValue("eventAction").AsNumber();
+            Assert.True(eventAction == 0);
+            Assert.True(collection.Count == 1);
+        }
+
+        [Fact]
         public void ShouldUseSystemIO()
         {
             RunTest(@"
@@ -548,6 +782,65 @@ namespace Jint.Tests.Runtime
         }
 
         [Fact]
+        public void CanGetStaticField()
+        {
+            RunTest(@"
+                var domain = importNamespace('Jint.Tests.Runtime.Domain');
+                var statics = domain.ClassWithStaticFields;
+                assert(statics.Get == 'Get');
+            ");
+        }
+
+        [Fact]
+        public void CanSetStaticField()
+        {
+            RunTest(@"
+                var domain = importNamespace('Jint.Tests.Runtime.Domain');
+                var statics = domain.ClassWithStaticFields;
+                statics.Set = 'hello';
+                assert(statics.Set == 'hello');
+            ");
+
+            Assert.Equal(ClassWithStaticFields.Set, "hello");
+        }
+
+        [Fact]
+        public void CanGetStaticAccessor()
+        {
+            RunTest(@"
+                var domain = importNamespace('Jint.Tests.Runtime.Domain');
+                var statics = domain.ClassWithStaticFields;
+                assert(statics.Getter == 'Getter');
+            ");
+        }
+
+        [Fact]
+        public void CanSetStaticAccessor()
+        {
+            RunTest(@"
+                var domain = importNamespace('Jint.Tests.Runtime.Domain');
+                var statics = domain.ClassWithStaticFields;
+                statics.Setter = 'hello';
+                assert(statics.Setter == 'hello');
+            ");
+
+            Assert.Equal(ClassWithStaticFields.Setter, "hello");
+        }
+
+        [Fact]
+        public void CantSetStaticReadonly()
+        {
+            RunTest(@"
+                var domain = importNamespace('Jint.Tests.Runtime.Domain');
+                var statics = domain.ClassWithStaticFields;
+                statics.Readonly = 'hello';
+                assert(statics.Readonly == 'Readonly');
+            ");
+
+            Assert.Equal(ClassWithStaticFields.Readonly, "Readonly");
+        }
+
+        [Fact]
         public void CanSetCustomConverters()
         {
 
@@ -603,6 +896,57 @@ namespace Jint.Tests.Runtime
             ");
         }
 
+        [Fact]
+        public void EnumComparesByName()
+        {
+            var o = new
+            {
+                r = Colors.Red,
+                b = Colors.Blue,
+                g = Colors.Green,
+                b2 = Colors.Red
+            };
+
+            _engine.SetValue("o", o);
+            _engine.SetValue("assertFalse", new Action<bool>(Assert.False));
+
+            RunTest(@"
+                var domain = importNamespace('Jint.Tests.Runtime.Domain');
+                var colors = domain.Colors;
+                assert(o.r === colors.Red);
+                assert(o.g === colors.Green);
+                assert(o.b === colors.Blue);
+                assertFalse(o.b2 === colors.Blue);
+            ");
+        }
+
+        [Fact]
+        public void ShouldSetEnumProperty()
+        {
+            var s = new Circle
+            {
+                Color = Colors.Red,
+            };
+
+            _engine.SetValue("s", s);
+
+            RunTest(@"
+                var domain = importNamespace('Jint.Tests.Runtime.Domain');
+                var colors = domain.Colors;
+                
+                s.Color = colors.Blue;
+                assert(s.Color === colors.Blue);
+            ");
+
+            _engine.SetValue("s", s);
+
+            RunTest(@"
+                s.Color = colors.Blue | colors.Green;
+                assert(s.Color === colors.Blue | colors.Green);
+            ");
+
+            Assert.Equal(Colors.Blue | Colors.Green, s.Color);
+        }
 
         [Fact]
         public void EnumIsConvertedToNumber()
@@ -648,6 +992,123 @@ namespace Jint.Tests.Runtime
             ");
 
             Assert.Equal(Colors.Blue | Colors.Green, s.Color);
+        }
+
+        [Fact]
+        public void ShouldUseExplicitPropertyGetter()
+        {
+            _engine.SetValue("c", new Company("ACME"));
+
+            RunTest(@"
+                assert(c.Name === 'ACME');
+            ");
+        }
+
+        [Fact]
+        public void ShouldUseExplicitIndexerPropertyGetter()
+        {
+            var company = new Company("ACME");
+            ((ICompany)company)["Foo"] = "Bar";
+            _engine.SetValue("c", company);
+
+            RunTest(@"
+                assert(c.Foo === 'Bar');
+            ");
+        }
+
+
+        [Fact]
+        public void ShouldUseExplicitPropertySetter()
+        {
+            _engine.SetValue("c", new Company("ACME"));
+
+            RunTest(@"
+                c.Name = 'Foo';
+                assert(c.Name === 'Foo');
+            ");
+        }
+
+        [Fact]
+        public void ShouldUseExplicitIndexerPropertySetter()
+        {
+            var company = new Company("ACME");
+            ((ICompany)company)["Foo"] = "Bar";
+            _engine.SetValue("c", company);
+
+            RunTest(@"
+                c.Foo = 'Baz';
+                assert(c.Foo === 'Baz');
+            ");
+        }
+
+
+        [Fact]
+        public void ShouldUseExplicitMethod()
+        {
+            _engine.SetValue("c", new Company("ACME"));
+
+            RunTest(@"
+                assert(0 === c.CompareTo(c));
+            ");
+        }
+
+        [Fact]
+        public void ShouldCallInstanceMethodWithParams()
+        {
+            _engine.SetValue("a", new A());
+
+            RunTest(@"
+                assert(a.Call13('1','2','3') === '1,2,3');
+                assert(a.Call13('1') === '1');
+                assert(a.Call13() === '');
+
+                assert(a.Call14('a','1','2','3') === 'a:1,2,3');
+                assert(a.Call14('a','1') === 'a:1');
+                assert(a.Call14('a') === 'a:');
+
+                function call13wrapper(){ return a.Call13.apply(a, Array.prototype.slice.call(arguments)); }
+                assert(call13wrapper('1','2','3') === '1,2,3');
+
+                assert(a.Call13('1','2','3') === a.Call13(['1','2','3']));
+            ");
+        }
+
+        [Fact]
+        public void NullValueAsArgumentShouldWork()
+        {
+            _engine.SetValue("a", new A());
+
+            RunTest(@"
+                var x = a.Call2(null);
+                assert(x === null);
+            ");
+        }
+
+        [Fact]
+        public void ShouldSetPropertyToNull()
+        {
+            var p = new Person { Name = "Mickey" };
+            _engine.SetValue("p", p);
+
+            RunTest(@"
+                assert(p.Name != null);
+                p.Name = null;
+                assert(p.Name == null);
+            ");
+
+            Assert.True(p.Name == null);
+        }
+
+        [Fact]
+        public void ShouldCallMethodWithNull()
+        {
+            _engine.SetValue("a", new A());
+
+            RunTest(@"
+                a.Call15(null);
+                var result = a.Call2(null);
+                assert(result == null);
+            ");
         }
 
     }

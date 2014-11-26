@@ -63,7 +63,7 @@ namespace Jint.Runtime.Interop
                         }
                         else
                         {
-                            parameters[i] = Engine.Options.GetTypeConverter().Convert(
+                            parameters[i] = Engine.ClrTypeConverter.Convert(
                                 arguments[i].ToObject(),
                                 parameterType,
                                 CultureInfo.InvariantCulture);
@@ -107,13 +107,64 @@ namespace Jint.Runtime.Interop
             return false;
         }
 
+        public override void Put(string propertyName, JsValue value, bool throwOnError)
+        {
+            if (!CanPut(propertyName))
+            {
+                if (throwOnError)
+                {
+                    throw new JavaScriptException(Engine.TypeError);
+                }
+
+                return;
+            }
+
+            var ownDesc = GetOwnProperty(propertyName);
+
+            if (ownDesc == null)
+            {
+                if (throwOnError)
+                {
+                    throw new JavaScriptException(Engine.TypeError, "Unknown member: " + propertyName);
+                }
+                else
+                {
+                    return;
+                }
+            }
+
+            ownDesc.Value = value;
+        }
+
         public override PropertyDescriptor GetOwnProperty(string propertyName)
         {
             // todo: cache members locally
-            var propertyInfo = Type.GetProperty(propertyName);
+
+            if (Type.IsEnum)
+            {
+                Array enumValues = Enum.GetValues(Type);
+                Array enumNames = Enum.GetNames(Type);
+
+                for (int i = 0; i < enumValues.Length; i++)
+                {
+                    if (enumNames.GetValue(i) as string == propertyName)
+                    {
+                        return new PropertyDescriptor((int)enumValues.GetValue(i), false, false, false);
+                    }
+                }
+                return PropertyDescriptor.Undefined;
+            }
+
+            var propertyInfo = Type.GetProperty(propertyName, BindingFlags.Public | BindingFlags.Static);
             if (propertyInfo != null)
             {
                 return new PropertyInfoDescriptor(Engine, propertyInfo, Type);
+            }
+
+            var fieldInfo = Type.GetField(propertyName, BindingFlags.Public | BindingFlags.Static);
+            if (fieldInfo != null)
+            {
+                return new FieldInfoDescriptor(Engine, fieldInfo, Type);
             }
 
             var methodInfo = Type

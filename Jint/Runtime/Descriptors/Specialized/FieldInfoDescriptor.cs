@@ -16,7 +16,7 @@ namespace Jint.Runtime.Descriptors.Specialized
             _fieldInfo = fieldInfo;
             _item = item;
 
-            Writable = true; // a field is always writable
+            Writable = !fieldInfo.Attributes.HasFlag(FieldAttributes.InitOnly); // don't write to fields marked as readonly
         }
 
         public override JsValue? Value
@@ -40,7 +40,7 @@ namespace Jint.Runtime.Descriptors.Specialized
                     obj = currentValue.ToObject();
                     if (obj.GetType() != _fieldInfo.FieldType)
                     {
-                        obj = _engine.Options.GetTypeConverter().Convert(obj, _fieldInfo.FieldType, CultureInfo.InvariantCulture);
+                        obj = _engine.ClrTypeConverter.Convert(obj, _fieldInfo.FieldType, CultureInfo.InvariantCulture);
                     }
                 }
                 

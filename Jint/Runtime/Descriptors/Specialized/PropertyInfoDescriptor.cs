@@ -38,9 +38,9 @@ namespace Jint.Runtime.Descriptors.Specialized
                 {
                     // attempt to convert the JsValue to the target type
                     obj = currentValue.ToObject();
-                    if (obj.GetType() != _propertyInfo.PropertyType)
+                    if (obj != null && obj.GetType() != _propertyInfo.PropertyType)
                     {
-                        obj = _engine.Options.GetTypeConverter().Convert(obj, _propertyInfo.PropertyType, CultureInfo.InvariantCulture);
+                        obj = _engine.ClrTypeConverter.Convert(obj, _propertyInfo.PropertyType, CultureInfo.InvariantCulture);
                     }
                 }
                 

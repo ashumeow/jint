@@ -45,5 +45,50 @@ namespace Jint.Tests.Runtime.Domain
 
             return callback(thisArg, arguments).ToString();
         }
+
+        public bool Call7(string str, Func<string, bool> predicate)
+        {
+            return predicate(str);
+        }
+
+        public string Call8(Func<string> predicate)
+        {
+            return predicate();
+        }
+
+        public void Call9(Action predicate)
+        {
+            predicate();
+        }
+
+        public void Call10(string str, Action<string> predicate)
+        {
+            predicate(str);
+        }
+
+        public void Call11(string str, string str2, Action<string, string> predicate)
+        {
+            predicate(str, str2);
+        }
+
+        public int Call12(int value, Func<int, int> map)
+        {
+            return map(value);
+        }
+
+        public string Call13(params object[] values)
+        {
+            return String.Join(",", values);
+        }
+
+        public string Call14(string firstParam, params object[] values)
+        {
+            return String.Format("{0}:{1}", firstParam, String.Join(",", values));
+        }
+
+        public void Call15(string x)
+        {
+
+        }
     }
 }
